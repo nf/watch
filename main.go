@@ -79,6 +79,9 @@ func main() {
 				log.Fatalf("readdir: %v", err)
 			}
 			for _, name := range names {
+				if ignoreFile(name) {
+					continue
+				}
 				if kq.m[name] != nil {
 					continue
 				}
@@ -110,16 +113,28 @@ func main() {
 			log.Fatal("kqueue phase error")
 		}
 
-		select {
-		case needrun <- true:
-		default:
+		fd := int(ev.Ident)
+
+		if !ignoreFile(kq.name[fd]) {
+			select {
+			case needrun <- true:
+			default:
+			}
+			time.Sleep(100 * time.Millisecond)
 		}
 
-		fd := int(ev.Ident)
 		readdir = fd == int(kq.dir.Fd())
-		time.Sleep(100 * time.Millisecond)
 		kadd(fd)
 	}
+}
+
+func ignoreFile(n string) bool {
+	switch {
+	case strings.HasPrefix(n, "."):
+	default:
+		return false
+	}
+	return true
 }
 
 var run struct {
