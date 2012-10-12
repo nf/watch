@@ -43,10 +43,6 @@ func kadd(fd int) {
 	}
 }
 
-func clear() {
-	os.Stdout.Write([]byte("\x1B[2J\x1B[;H"))
-}
-
 func main() {
 	flag.Parse()
 	args = flag.Args()
@@ -55,7 +51,6 @@ func main() {
 		os.Exit(2)
 	}
 
-	clear()
 	needrun <- true
 	go runner()
 
@@ -164,7 +159,7 @@ func runner() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		clear()
+		os.Stdout.Write([]byte("\x1B[2J\x1B[;H")) // clear
 		fmt.Printf("$ %s\n", strings.Join(args, " "))
 		cmd.Stdout = w
 		cmd.Stderr = w
