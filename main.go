@@ -50,6 +50,10 @@ func clear() {
 func main() {
 	flag.Parse()
 	args = flag.Args()
+	if len(args) == 0 {
+		fmt.Fprintf(os.Stderr, "usage: %s command\n", os.Args[0])
+		os.Exit(2)
+	}
 
 	clear()
 	needrun <- true
