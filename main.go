@@ -150,11 +150,12 @@ func runner() {
 		id := run.id
 		run.Unlock()
 		if lastcmd != nil {
-			lastcmd.Process.Kill()
+			killpg(lastcmd)
 			<-killed
 		}
 		lastcmd = nil
 		cmd := exec.Command(args[0], args[1:]...)
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 		r, w, err := os.Pipe()
 		if err != nil {
 			log.Fatal(err)
@@ -198,4 +199,35 @@ func runner() {
 			}
 		}()
 	}
+}
+
+func killpg(cmd *exec.Cmd) error {
+	if cmd != nil && cmd.Process != nil {
+		done := make(chan struct{})
+		go func() {
+			cmd.Wait()
+			close(done)
+		}()
+
+		pgid, err := syscall.Getpgid(cmd.Process.Pid)
+		if err != nil {
+			return err
+		}
+
+		if err := syscall.Kill(-pgid, syscall.SIGINT); err != nil {
+			return err
+		}
+
+		select {
+		case <-time.After(3 * time.Second):
+			log.Println("Interrupt failed, sending SIGKILL")
+			if err := syscall.Kill(-pgid, syscall.SIGKILL); err != nil {
+				return err
+			}
+		case <-done:
+		}
+		cmd = nil
+	}
+
+	return nil
 }
