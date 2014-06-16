@@ -150,11 +150,12 @@ func runner() {
 		id := run.id
 		run.Unlock()
 		if lastcmd != nil {
-			lastcmd.Process.Kill()
+			killpg(lastcmd)
 			<-killed
 		}
 		lastcmd = nil
 		cmd := exec.Command(args[0], args[1:]...)
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 		r, w, err := os.Pipe()
 		if err != nil {
 			log.Fatal(err)
@@ -198,4 +199,31 @@ func runner() {
 			}
 		}()
 	}
+}
+
+func killpg(cmd *exec.Cmd) error {
+	if cmd == nil || cmd.Process == nil {
+		return nil
+	}
+
+	pgid, err := syscall.Getpgid(cmd.Process.Pid)
+	if err != nil {
+		return err
+	}
+
+	errc := make(chan error, 1)
+	go func() {
+		if err := syscall.Kill(-pgid, syscall.SIGINT); err != nil {
+			errc <- err
+			return
+		}
+		errc <- cmd.Wait()
+	}()
+
+	select {
+	case <-time.After(3 * time.Second):
+		err = syscall.Kill(-pgid, syscall.SIGKILL)
+	case err = <-errc:
+	}
+	return err
 }
