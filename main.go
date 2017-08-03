@@ -44,10 +44,14 @@ func kadd(fd int) {
 }
 
 func main() {
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "usage: %s command\n", os.Args[0])
+		flag.PrintDefaults()
+	}
 	flag.Parse()
 	args = flag.Args()
 	if len(args) == 0 {
-		fmt.Fprintf(os.Stderr, "usage: %s command\n", os.Args[0])
+		flag.Usage()
 		os.Exit(2)
 	}
 
